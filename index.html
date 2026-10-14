@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E1F5EE">
+<title>D-Diary</title>
+<style>
+  :root {
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+
+    /* Morning is the default; the other four times of day override these */
+    --bg: #E1F5EE;
+    --text: #04342C;
+    --sub: #085041;
+    --card: #FFFFFF;
+    --btn: #5DCAA5;
+    --btn-text: #04342C;
+    --line: #BFE3D6;
+    --danger: #A32D2D;
+  }
+  :root[data-time="sunrise"] {
+    --bg: #FAEEDA; --text: #412402; --sub: #854F0B; --card: #FFFFFF;
+    --btn: #EF9F27; --btn-text: #412402; --line: #EBD5AD; --danger: #A32D2D;
+  }
+  :root[data-time="morning"] {
+    --bg: #E1F5EE; --text: #04342C; --sub: #085041; --card: #FFFFFF;
+    --btn: #5DCAA5; --btn-text: #04342C; --line: #BFE3D6; --danger: #A32D2D;
+  }
+  :root[data-time="afternoon"] {
+    --bg: #F6FAEF; --text: #173404; --sub: #3B6D11; --card: #FFFFFF;
+    --btn: #C0DD97; --btn-text: #173404; --line: #DCE8C8; --danger: #A32D2D;
+  }
+  :root[data-time="evening"] {
+    --bg: #F1EFE8; --text: #2C2C2A; --sub: #5F5E5A; --card: #FFFFFF;
+    --btn: #2C2C2A; --btn-text: #F1EFE8; --line: #DAD6C8; --danger: #A32D2D;
+  }
+  :root[data-time="night"] {
+    --bg: #042C53; --text: #E6F1FB; --sub: #85B7EB; --card: #0C447C;
+    --btn: #85B7EB; --btn-text: #042C53; --line: #12508F; --danger: #F09595;
+  }
+
+  *, *::before, *::after { box-sizing: inherit; }
+
+  html {
+    height: 100%;
+    scroll-padding-top: env(safe-area-inset-top, 0px);
+    background: var(--bg);
+  }
+  body {
+    min-height: 100%;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.4;
+    -webkit-text-size-adjust: 100%;
+    transition: background 0.4s, color 0.4s;
+  }
+  #app {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 16px;
+  }
+  #app > section { flex: 1; display: flex; flex-direction: column; }
+
+  h1 { font-size: 22px; line-height: 1.2; margin: 4px 0 16px; }
+  h1:focus { outline: none; }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  p { margin: 0; }
+
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 3px solid var(--sub); outline-offset: 2px; }
+
+  .btn {
+    display: block;
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--btn);
+    color: var(--btn-text);
+    font-size: 17px;
+    font-weight: 600;
+    transition: transform 0.1s;
+  }
+  .btn:active { transform: scale(0.98); }
+  .btn.outline { background: transparent; color: var(--text); border: 1.5px solid var(--sub); font-weight: 500; }
+  .btn.danger { background: transparent; color: var(--danger); border: 1.5px solid var(--danger); font-weight: 500; }
+  .btn.small { width: auto; min-height: 44px; padding: 8px 16px; font-size: 15px; }
+
+  .link {
+    background: none; border: 0; color: var(--sub);
+    min-height: 44px; padding: 10px 12px; font-size: 14px; text-decoration: underline;
+  }
+  .back {
+    align-self: flex-start;
+    background: none; border: 0; color: var(--sub);
+    min-height: 44px; padding: 8px 12px 8px 0; font-size: 16px; font-weight: 600;
+  }
+
+  /* Home */
+  .home { align-items: center; text-align: center; padding-top: 24px; }
+  .home .icon svg { display: block; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18); border-radius: 22%; }
+  .home h1 { font-size: 32px; margin: 16px 0 4px; }
+  .home .greet { font-size: 17px; color: var(--sub); }
+  .home .date { font-size: 15px; color: var(--sub); margin-top: 2px; }
+  .home .stack { width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 12px; margin-top: 28px; }
+  .home .foot { margin-top: auto; padding-top: 24px; display: flex; flex-direction: column; align-items: center; color: var(--sub); font-size: 13px; }
+
+  /* Write today */
+  .hour { margin: 0 0 12px; }
+  .hour label, .imp label { display: block; font-size: 14px; font-weight: 600; color: var(--sub); margin-bottom: 4px; }
+  textarea, input[type="text"] {
+    display: block;
+    width: 100%;
+    font: inherit;
+    font-size: 16px;
+    line-height: 1.4;
+    color: var(--text);
+    background: var(--card);
+    border: 1px solid var(--sub);
+    border-radius: 10px;
+    padding: 10px 12px;
+  }
+  textarea { resize: none; overflow: hidden; min-height: 44px; }
+  .imp { margin-top: 20px; padding: 12px; border-radius: 14px; background: var(--card); }
+  .imp textarea { background: var(--bg); }
+  .savebar {
+    position: sticky;
+    bottom: 0;
+    margin: 12px -16px 0;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+    background: var(--bg);
+    border-top: 1px solid var(--line);
+  }
+  .notice { background: var(--card); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 14px; color: var(--danger); }
+
+  /* Saved days */
+  .month { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; color: var(--sub); margin: 20px 0 8px; }
+  .card { background: var(--card); border-radius: 14px; padding: 12px 14px; margin-bottom: 8px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .row-label { font-weight: 600; flex: 1 1 110px; }
+  .row-actions { display: flex; gap: 8px; }
+  .empty { text-align: center; color: var(--sub); padding: 28px 12px; }
+
+  /* A saved day */
+  .entry { padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .entry-hour { font-size: 13px; font-weight: 700; color: var(--sub); }
+  .entry-text { white-space: pre-wrap; overflow-wrap: anywhere; margin-top: 2px; }
+  .entry.imp-entry { border: 0; margin-top: 16px; padding: 12px 14px; border-radius: 14px; background: var(--card); }
+
+  /* Pop-up box and toast */
+  .overlay {
+    position: fixed; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .overlay[hidden] { display: none; }
+  .modal { width: 100%; max-width: 360px; padding: 20px; border-radius: 16px; background: var(--card); color: var(--text); }
+  .modal .muted { color: var(--sub); margin-bottom: 12px; }
+  .modal input { margin: 4px 0 16px; }
+  .modal-actions { display: flex; gap: 10px; }
+  .modal-actions .btn { flex: 1; }
+  .toast {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(90px + env(safe-area-inset-bottom, 0px));
+    z-index: 20; max-width: calc(100% - 32px);
+    padding: 10px 18px; border-radius: 999px;
+    background: var(--btn); color: var(--btn-text); font-weight: 600; font-size: 15px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  }
+  .toast[hidden] { display: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="overlay" class="overlay" hidden>
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title"></div>
+</div>
+<div id="toast" class="toast" role="status" hidden></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var DATA_KEY = 'ddiary-data-v1';
+  var NAME_KEY = 'ddiary-name-v1';
+
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  var DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  var DAYS_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  var GREETINGS = { sunrise: 'Rise and shine', morning: 'Good morning', afternoon: 'Good afternoon', evening: 'Good evening', night: 'Good night' };
+  var THEME_COLORS = { sunrise: '#FAEEDA', morning: '#E1F5EE', afternoon: '#F6FAEF', evening: '#F1EFE8', night: '#042C53' };
+  var ICON_COLORS = ['#EF9F27', '#5DCAA5', '#C0DD97', '#F1EFE8', '#85B7EB'];
+
+  var HOURS = [];
+  for (var h = 0; h < 24; h++) {
+    HOURS.push(((h % 12) || 12) + ' ' + (h < 12 ? 'AM' : 'PM'));
+  }
+
+  /* ---------- Saving and loading (on this phone only) ---------- */
+
+  var memory = { data: null, name: '' };
+
+  function testStorage() {
+    try {
+      localStorage.setItem('__ddiary_test', '1');
+      localStorage.removeItem('__ddiary_test');
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+  var storageOK = testStorage();
+
+  function readRaw(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  function writeRaw(key, value) {
+    try { localStorage.setItem(key, value); return true; } catch (e) { return false; }
+  }
+
+  function loadData() {
+    if (!storageOK) { return memory.data || {}; }
+    var raw = readRaw(DATA_KEY);
+    if (!raw) { return {}; }
+    try {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) { return parsed; }
+    } catch (e) { /* fall through */ }
+    writeRaw(DATA_KEY + '-unreadable-copy', raw);
+    return {};
+  }
+  function saveData(data) {
+    if (!storageOK) { memory.data = data; return true; }
+    return writeRaw(DATA_KEY, JSON.stringify(data));
+  }
+  function loadName() {
+    if (!storageOK) { return memory.name; }
+    return readRaw(NAME_KEY) || '';
+  }
+  function saveName(name) {
+    if (!storageOK) { memory.name = name; return; }
+    writeRaw(NAME_KEY, name);
+  }
+
+  /* ---------- Dates ---------- */
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+  function keyOf(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function parseKey(k) { var p = k.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
+  function longDate(d) { return DAYS[d.getDay()] + ', ' + pad(d.getDate()) + ' ' + MONTHS_SHORT[d.getMonth()] + ' ' + d.getFullYear(); }
+  function shortLabel(d) { return MONTHS_SHORT[d.getMonth()] + ' ' + pad(d.getDate()) + ' ' + DAYS_SHORT[d.getDay()]; }
+  function monthTitle(d) { return MONTHS[d.getMonth()] + ' ' + d.getFullYear(); }
+  function isDayKey(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }
+
+  /* ---------- Time-of-day colors ---------- */
+
+  function timeOfDay(hour) {
+    if (hour >= 5 && hour < 8) { return 'sunrise'; }
+    if (hour >= 8 && hour < 14) { return 'morning'; }
+    if (hour >= 14 && hour < 18) { return 'afternoon'; }
+    if (hour >= 18 && hour < 22) { return 'evening'; }
+    return 'night';
+  }
+  function applyTheme() {
+    var t = timeOfDay(new Date().getHours());
+    document.documentElement.setAttribute('data-time', t);
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) { meta.setAttribute('content', THEME_COLORS[t]); }
+    return t;
+  }
+
+  /* ---------- Small helpers ---------- */
+
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        var v = props[k];
+        if (k === 'class') { n.className = v; }
+        else if (k === 'text') { n.textContent = v; }
+        else if (k === 'value') { n.value = v; }
+        else if (k.slice(0, 2) === 'on') { n.addEventListener(k.slice(2), v); }
+        else { n.setAttribute(k, v); }
+      });
+    }
+    (kids || []).forEach(function (c) {
+      if (c === null || c === undefined) { return; }
+      n.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+    });
+    return n;
+  }
+
+  function iconSvg(size) {
+    var rings = '';
+    for (var i = 0; i < 5; i++) {
+      rings += '<circle cx="100" cy="100" r="58" stroke="' + ICON_COLORS[i] + '" stroke-dasharray="64.8 400" stroke-dashoffset="' + (-72.8 * i) + '"/>';
+    }
+    return '<svg width="' + size + '" height="' + size + '" viewBox="0 0 200 200" role="img" aria-label="D-Diary icon">' +
+      '<rect width="200" height="200" rx="44" fill="#2C2C2A"/>' +
+      '<g transform="rotate(-90 100 100)" fill="none" stroke-width="16">' + rings + '</g>' +
+      '<circle cx="100" cy="100" r="38" fill="#F1EFE8"/>' +
+      '<path d="M84 101 L96 113 L118 88" fill="none" stroke="#2C2C2A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '</svg>';
+  }
+
+  function growBox(box) {
+    box.style.height = 'auto';
+    box.style.height = (box.scrollHeight + (box.offsetHeight - box.clientHeight)) + 'px';
+  }
+
+  var toastTimer = null;
+  function toast(message) {
+    var t = document.getElementById('toast');
+    t.textContent = message;
+    t.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { t.hidden = true; }, 2200);
+  }
+
+  /* ---------- Pop-up box ---------- */
+
+  var overlay = document.getElementById('overlay');
+  var modalBox = document.getElementById('modal');
+  var lastFocus = null;
+
+  function closeModal() {
+    overlay.hidden = true;
+    modalBox.textContent = '';
+    if (lastFocus && lastFocus.focus) { lastFocus.focus(); }
+  }
+  function openModal(opts) {
+    lastFocus = document.activeElement;
+    modalBox.textContent = '';
+    modalBox.appendChild(el('h2', { id: 'modal-title', text: opts.title }));
+    if (opts.body) { modalBox.appendChild(el('p', { class: 'muted', text: opts.body })); }
+    if (opts.input) { modalBox.appendChild(opts.input); }
+    var actions = el('div', { class: 'modal-actions' });
+    opts.actions.forEach(function (a) {
+      actions.appendChild(el('button', {
+        type: 'button',
+        class: 'btn ' + (a.kind || ''),
+        text: a.label,
+        onclick: function () {
+          var result = a.run ? a.run() : undefined;
+          if (result !== false) { closeModal(); }
+        }
+      }));
+    });
+    modalBox.appendChild(actions);
+    overlay.hidden = false;
+    if (opts.input) { opts.input.focus(); } else { actions.lastChild.focus(); }
+  }
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !overlay.hidden) { closeModal(); }
+  });
+
+  function openNameBox() {
+    var input = el('input', { type: 'text', id: 'name-input', maxlength: '30', autocomplete: 'given-name', 'aria-label': 'Your name', value: loadName() });
+    function save() {
+      var name = input.value.trim();
+      if (name === '') { input.focus(); return false; }
+      saveName(name);
+      if (routePath === '/') { render(); }
+    }
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { if (save() !== false) { closeModal(); } }
+    });
+    openModal({
+      title: "What's your name?",
+      input: input,
+      actions: [
+        { label: 'Not now', kind: 'outline' },
+        { label: 'Save', run: save }
+      ]
+    });
+  }
+
+  function confirmDelete(key) {
+    var d = parseKey(key);
+    openModal({
+      title: 'Delete ' + shortLabel(d) + '?',
+      body: 'This cannot be undone.',
+      actions: [
+        { label: 'Cancel', kind: 'outline' },
+        {
+          label: 'Delete', kind: 'danger',
+          run: function () {
+            var all = loadData();
+            delete all[key];
+            saveData(all);
+            toast('Deleted');
+            render();
+          }
+        }
+      ]
+    });
+  }
+
+  /* ---------- Screens ---------- */
+
+  var routePath = '/';
+  var activeWrite = null;
+  var afterRender = [];
+  var askedName = false;
+
+  function topBar(label, target) {
+    return el('button', { type: 'button', class: 'back', text: '\u2190 ' + label, onclick: function () { go(target); } });
+  }
+
+  function viewHome() {
+    var now = new Date();
+    var name = loadName();
+    var greet = GREETINGS[timeOfDay(now.getHours())] + (name ? ', ' + name : '');
+    var icon = el('div', { class: 'icon' });
+    icon.innerHTML = iconSvg(96);
+    return el('section', { class: 'home' }, [
+      icon,
+      el('h1', { text: 'D-Diary' }),
+      el('p', { class: 'greet', text: greet }),
+      el('p', { class: 'date', text: longDate(now) }),
+      el('div', { class: 'stack' }, [
+        el('button', { type: 'button', class: 'btn', text: 'Write today', onclick: function () { go('/write'); } }),
+        el('button', { type: 'button', class: 'btn outline', text: 'Saved days', onclick: function () { go('/saved'); } })
+      ]),
+      el('div', { class: 'foot' }, [
+        el('button', { type: 'button', class: 'link', text: 'Change name', onclick: openNameBox }),
+        el('p', { text: 'Your data stays on this phone' })
+      ])
+    ]);
+  }
+
+  function viewWrite() {
+    var now = new Date();
+    var key = keyOf(now);
+    var saved = loadData()[key] || {};
+    var fields = {};
+    var timer = null;
+
+    function persist() {
+      var all = loadData();
+      var day = Object.assign({}, all[key] || {});
+      HOURS.forEach(function (label) {
+        var v = fields[label].value;
+        if (v.trim() !== '') { day[label] = v; } else { delete day[label]; }
+      });
+      var imp = improvement.value;
+      if (imp.trim() !== '') { day.Improvement = imp; } else { delete day.Improvement; }
+      if (Object.keys(day).length > 0) { all[key] = day; } else { delete all[key]; }
+      return saveData(all);
+    }
+    function later() {
+      clearTimeout(timer);
+      timer = setTimeout(persist, 500);
+    }
+
+    var kids = [topBar('Home', '/'), el('h1', { text: longDate(now) })];
+    if (!storageOK) {
+      kids.push(el('p', { class: 'notice', text: "This browser isn't letting the app keep your entries. They will be lost when you close this page." }));
+    }
+
+    HOURS.forEach(function (label, i) {
+      var box = el('textarea', { id: 'hour-' + i, rows: '1', autocomplete: 'off', value: saved[label] || '' });
+      box.addEventListener('input', function () { growBox(box); later(); });
+      fields[label] = box;
+      kids.push(el('div', { class: 'hour' }, [el('label', { for: 'hour-' + i, text: label }), box]));
+    });
+
+    var improvement = el('textarea', { id: 'improvement', rows: '2', autocomplete: 'off', value: saved.Improvement || '' });
+    improvement.addEventListener('input', function () { growBox(improvement); later(); });
+    kids.push(el('div', { class: 'imp' }, [
+      el('label', { for: 'improvement', text: 'Improvement \u2013 ' + longDate(now) }),
+      improvement
+    ]));
+
+    kids.push(el('div', { class: 'savebar' }, [
+      el('button', {
+        type: 'button', class: 'btn', text: 'Save day',
+        onclick: function () {
+          clearTimeout(timer);
+          if (persist()) {
+            toast(storageOK ? 'Saved \u2713' : 'Saved for now');
+            activeWrite = null;
+            go('/');
+          } else {
+            toast("Couldn't save. Is your phone storage full?");
+          }
+        }
+      })
+    ]));
+
+    activeWrite = { persist: function () { clearTimeout(timer); persist(); } };
+    afterRender.push(function () {
+      HOURS.forEach(function (label) { growBox(fields[label]); });
+      growBox(improvement);
+    });
+    return el('section', {}, kids);
+  }
+
+  function viewSaved() {
+    var all = loadData();
+    var keys = Object.keys(all).filter(isDayKey).sort().reverse();
+    var kids = [topBar('Home', '/'), el('h1', { text: 'Saved days' })];
+
+    if (keys.length === 0) {
+      kids.push(el('p', { class: 'empty', text: 'No saved days yet.' }));
+    }
+    var lastMonth = '';
+    keys.forEach(function (k) {
+      var d = parseKey(k);
+      var m = monthTitle(d);
+      if (m !== lastMonth) {
+        lastMonth = m;
+        kids.push(el('h2', { class: 'month', text: m }));
+      }
+      kids.push(el('div', { class: 'card' }, [
+        el('div', { class: 'row' }, [
+          el('span', { class: 'row-label', text: shortLabel(d) }),
+          el('div', { class: 'row-actions' }, [
+            el('button', { type: 'button', class: 'btn small', text: 'Open', 'aria-label': 'Open ' + shortLabel(d), onclick: function () { go('/day/' + k); } }),
+            el('button', { type: 'button', class: 'btn small danger', text: 'Delete', 'aria-label': 'Delete ' + shortLabel(d), onclick: function () { confirmDelete(k); } })
+          ])
+        ])
+      ]));
+    });
+    return el('section', {}, kids);
+  }
+
+  function viewDay(key) {
+    var kids = [topBar('Saved days', '/saved')];
+    var day = isDayKey(key) ? loadData()[key] : null;
+    if (!day) {
+      kids.push(el('h1', { text: 'Day not found' }));
+      kids.push(el('p', { class: 'empty', text: 'This day is not saved on this phone.' }));
+      return el('section', {}, kids);
+    }
+    kids.push(el('h1', { text: longDate(parseKey(key)) }));
+    var any = false;
+    HOURS.forEach(function (label) {
+      var words = day[label];
+      if (typeof words === 'string' && words.trim() !== '') {
+        any = true;
+        kids.push(el('div', { class: 'entry' }, [
+          el('div', { class: 'entry-hour', text: label }),
+          el('div', { class: 'entry-text', text: words })
+        ]));
+      }
+    });
+    if (typeof day.Improvement === 'string' && day.Improvement.trim() !== '') {
+      any = true;
+      kids.push(el('div', { class: 'entry imp-entry' }, [
+        el('div', { class: 'entry-hour', text: 'Improvement' }),
+        el('div', { class: 'entry-text', text: day.Improvement })
+      ]));
+    }
+    if (!any) { kids.push(el('p', { class: 'empty', text: 'Nothing was written on this day.' })); }
+    return el('section', {}, kids);
+  }
+
+  /* ---------- Moving between screens ---------- */
+
+  var app = document.getElementById('app');
+
+  function readHash() {
+    var v = '';
+    try { v = location.hash.replace(/^#/, ''); } catch (e) { /* ignore */ }
+    return v || '/';
+  }
+
+  function render() {
+    if (activeWrite) { activeWrite.persist(); activeWrite = null; }
+    var view;
+    if (routePath === '/write') { view = viewWrite(); }
+    else if (routePath === '/saved') { view = viewSaved(); }
+    else if (routePath.indexOf('/day/') === 0) { view = viewDay(routePath.slice(5)); }
+    else { routePath = '/'; view = viewHome(); }
+    app.textContent = '';
+    app.appendChild(view);
+    var jobs = afterRender.splice(0);
+    jobs.forEach(function (f) { f(); });
+    applyTheme();
+  }
+
+  function go(path) {
+    routePath = path;
+    try { if (readHash() !== path) { location.hash = path; } } catch (e) { /* ignore */ }
+    render();
+    window.scrollTo(0, 0);
+    var heading = app.querySelector('h1');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus({ preventScroll: true });
+    }
+  }
+
+  window.addEventListener('hashchange', function () {
+    var p = readHash();
+    if (p !== routePath) { routePath = p; render(); window.scrollTo(0, 0); }
+  });
+
+  function saveAndLeave() { if (activeWrite) { activeWrite.persist(); } }
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) { saveAndLeave(); }
+    else { applyTheme(); if (routePath === '/' && overlay.hidden) { render(); } }
+  });
+  window.addEventListener('pagehide', saveAndLeave);
+
+  setInterval(function () {
+    applyTheme();
+    if (routePath === '/' && overlay.hidden) { render(); }
+  }, 60000);
+
+  /* ---------- Start ---------- */
+
+  routePath = readHash();
+  applyTheme();
+  render();
+  if (routePath === '/' && loadName() === '' && !askedName) {
+    askedName = true;
+    openNameBox();
+  }
+})();
+</script>
+</body>
+</html>
